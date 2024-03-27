@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/openpeeps/oris/blob/main/.github/logo.png" width="140px"><br>
+  <img src="https://github.com/openpeeps/oris/blob/main/.github/oris.png" width="140px"><br>
   Streamlined <code>YAML</code> to multilingual translation library<br>Written in Nim 👑
 </p>
 
