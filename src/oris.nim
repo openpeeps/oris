@@ -99,8 +99,7 @@ proc translateImpl(translations: TableRef[string, TranslatableSring];
     return translation.text
   return key
 
-proc translatePlural*(lang: Language; key: string;
-                      counts: openArray[(string, int)]): string =
+proc translate*(lang: Language; key: string; counts: openArray[(string, int)]): string =
   ## Handles single or multi-context pluralization.
   ## `counts` is e.g. `[("dogs", 2), ("cats", 1)]`
   if unlikely(not lang.translations.hasKey(key)): return key
@@ -140,14 +139,14 @@ proc translatePlural*(lang: Language; key: string;
 
   result = t.text % substitutions
 
-proc translatePlural*(i18n: Oris; key: string; counts: openArray[(string, int)]): string =
+proc translate*(i18n: Oris; key: string; counts: openArray[(string, int)]): string =
   ## Translates a pluralizable key using the default language in the Oris instance.
-  translatePlural(i18n.languages[i18n.default], key, counts)
+  translate(i18n.languages[i18n.default], key, counts)
 
-proc translatePlural*(i18n: Oris; langCode: string; key: string; counts: openArray[(string, int)]): string =
+proc translate*(i18n: Oris; langCode: string; key: string; counts: openArray[(string, int)]): string =
   ## Translates a pluralizable key using the specified language code in the Oris instance.
   if i18n.languages.hasKey(langCode):
-    return translatePlural(i18n.languages[langCode], key, counts)
+    return translate(i18n.languages[langCode], key, counts)
   return key
 
 proc translate*(lang: Language; key: string): string =

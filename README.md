@@ -60,18 +60,16 @@ newLanguage i18n, "es":
       else: "$cats gatos"
 
 # Showcase translations in the default language ("en")
-echo "Default Language (English):"
 echo i18n.translate("welcome")  # Output: "Welcome to Oris!"
 echo i18n.translate("welcome_message", ["3"])  # Output: "Your Oris instance is now live. You have 3 new messages."
 echo i18n.translate("greeting_user", @["Alice"])  # Output: "Hello, Alice! Welcome back."
-echo i18n.translatePlural("animals", [("dogs", 2), ("cats", 1)])  # Output: "2 dogs and one cat"
+echo i18n.translate("animals", [("dogs", 2), ("cats", 1)])  # Output: "2 dogs and one cat"
 
 # Showcase translations in Spanish ("es")
-echo "\nSpanish Language:"
 echo i18n.translate("es", "welcome")  # Output: "¡Bienvenido a Oris!"
 echo i18n.translate("es", "welcome_message", ["5"])  # Output: "Tu instancia de Oris ya está en vivo. Tienes 5 nuevos mensajes."
 echo i18n.translate("es", "greeting_user", @["Carlos"])  # Output: "¡Hola, Carlos! Bienvenido de nuevo."
-echo i18n.translatePlural("es", "animals", [("dogs", 1), ("cats", 3)])  # Output: "un perro y 3 gatos"
+echo i18n.translate("es", "animals", [("dogs", 1), ("cats", 3)])  # Output: "un perro y 3 gatos"
 ```
 
 ### Encode and Decode language data
@@ -79,34 +77,28 @@ Encode language data to disk using FBE format and decode it back to verify that 
 
 ```nim
 # Encode the English language to disk using FastBinaryEncoding (FBE) format
-echo "\nEncoding English language to disk..."
 i18n.languages["en"].encode("en.fbe")
 
 # Decode the language from disk and verify translations
-echo "Decoding English language from disk..."
 var enDecoded: Language
 enDecoded.decode("en.fbe")
 
 # Verify translations from the decoded language
-echo "\nDecoded Language (English):"
 echo enDecoded.translate("welcome")  # Output: "Welcome to Oris!"
 echo enDecoded.translate("welcome_message", ["2"])  # Output: "Your Oris instance is now live. You have 2 new messages."
-echo enDecoded.translatePlural("animals", [("dogs", 1), ("cats", 2)])  # Output: "one dog and 2 cats"
+echo enDecoded.translate("animals", [("dogs", 1), ("cats", 2)])  # Output: "one dog and 2 cats"
 
 # Encode the Spanish language to disk
-echo "\nEncoding Spanish language to disk..."
 i18n.languages["es"].encode("es.fbe")
 
 # Decode the Spanish language from disk and verify translations
-echo "Decoding Spanish language from disk..."
 var esDecoded: Language
 esDecoded.decode("es.fbe")
 
 # Verify translations from the decoded Spanish language
-echo "\nDecoded Language (Spanish):"
 echo esDecoded.translate("welcome")  # Output: "¡Bienvenido a Oris!"
 echo esDecoded.translate("welcome_message", ["4"])  # Output: "Tu instancia de Oris ya está en vivo. Tienes 4 nuevos mensajes."
-echo esDecoded.translatePlural("animals", [("dogs", 3), ("cats", 1)])  # Output: "3 perros y un gato"
+echo esDecoded.translate("animals", [("dogs", 3), ("cats", 1)])  # Output: "3 perros y un gato"
 ```
 
 ### ❤ Contributions & Support
