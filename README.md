@@ -67,14 +67,17 @@ echo i18n.translate("greeting_user", @["Alice"])  # Output: "Hello, Alice! Welco
 echo i18n.translatePlural("animals", [("dogs", 2), ("cats", 1)])  # Output: "2 dogs and one cat"
 
 # Showcase translations in Spanish ("es")
-echo "-------------------------------"
 echo "\nSpanish Language:"
 echo i18n.translate("es", "welcome")  # Output: "¡Bienvenido a Oris!"
 echo i18n.translate("es", "welcome_message", ["5"])  # Output: "Tu instancia de Oris ya está en vivo. Tienes 5 nuevos mensajes."
 echo i18n.translate("es", "greeting_user", @["Carlos"])  # Output: "¡Hola, Carlos! Bienvenido de nuevo."
 echo i18n.translatePlural("es", "animals", [("dogs", 1), ("cats", 3)])  # Output: "un perro y 3 gatos"
+```
 
-echo "-------------------------------"
+### Encode and Decode language data
+Encode language data to disk using FBE format and decode it back to verify that translations are preserved correctly
+
+```nim
 # Encode the English language to disk using FastBinaryEncoding (FBE) format
 echo "\nEncoding English language to disk..."
 i18n.languages["en"].encode("en.fbe")
@@ -90,7 +93,6 @@ echo enDecoded.translate("welcome")  # Output: "Welcome to Oris!"
 echo enDecoded.translate("welcome_message", ["2"])  # Output: "Your Oris instance is now live. You have 2 new messages."
 echo enDecoded.translatePlural("animals", [("dogs", 1), ("cats", 2)])  # Output: "one dog and 2 cats"
 
-echo "-------------------------------"
 # Encode the Spanish language to disk
 echo "\nEncoding Spanish language to disk..."
 i18n.languages["es"].encode("es.fbe")
