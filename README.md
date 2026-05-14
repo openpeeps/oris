@@ -60,16 +60,30 @@ newLanguage i18n, "es":
       else: "$cats gatos"
 
 # Showcase translations in the default language ("en")
-echo i18n.translate("welcome")  # Output: "Welcome to Oris!"
-echo i18n.translate("welcome_message", ["3"])  # Output: "Your Oris instance is now live. You have 3 new messages."
-echo i18n.translate("greeting_user", @["Alice"])  # Output: "Hello, Alice! Welcome back."
-echo i18n.translate("animals", [("dogs", 2), ("cats", 1)])  # Output: "2 dogs and one cat"
+echo i18n.translate("welcome")
+  # "Welcome to Oris!"
+
+echo i18n.translate("welcome_message", ["3"])
+  # "Your Oris instance is now live. You have 3 new messages."
+
+echo i18n.translate("greeting_user", @["Alice"])
+  # "Hello, Alice! Welcome back."
+
+echo i18n.translate("animals", [("dogs", 2), ("cats", 1)])
+  # "2 dogs and one cat"
 
 # Showcase translations in Spanish ("es")
-echo i18n.translate("es", "welcome")  # Output: "¡Bienvenido a Oris!"
-echo i18n.translate("es", "welcome_message", ["5"])  # Output: "Tu instancia de Oris ya está en vivo. Tienes 5 nuevos mensajes."
-echo i18n.translate("es", "greeting_user", @["Carlos"])  # Output: "¡Hola, Carlos! Bienvenido de nuevo."
-echo i18n.translate("es", "animals", [("dogs", 1), ("cats", 3)])  # Output: "un perro y 3 gatos"
+echo i18n.translate("es", "welcome")
+  # "¡Bienvenido a Oris!"
+
+echo i18n.translate("es", "welcome_message", ["5"])
+  # "Tu instancia de Oris ya está en vivo. Tienes 5 nuevos mensajes."
+
+echo i18n.translate("es", "greeting_user", @["Carlos"])
+  # "¡Hola, Carlos! Bienvenido de nuevo."
+
+echo i18n.translate("es", "animals", [("dogs", 1), ("cats", 3)])
+  # "un perro y 3 gatos"
 ```
 
 ### Encode and Decode language data
@@ -84,9 +98,14 @@ var enDecoded: Language
 enDecoded.decode("en.fbe")
 
 # Verify translations from the decoded language
-echo enDecoded.translate("welcome")  # Output: "Welcome to Oris!"
-echo enDecoded.translate("welcome_message", ["2"])  # Output: "Your Oris instance is now live. You have 2 new messages."
-echo enDecoded.translate("animals", [("dogs", 1), ("cats", 2)])  # Output: "one dog and 2 cats"
+echo enDecoded.translate("welcome")
+  # "Welcome to Oris!"
+
+echo enDecoded.translate("welcome_message", ["2"])
+  # "Your Oris instance is now live. You have 2 new messages."
+
+echo enDecoded.translate("animals", [("dogs", 1), ("cats", 2)])
+  # "one dog and 2 cats"
 
 # Encode the Spanish language to disk
 i18n.languages["es"].encode("es.fbe")
@@ -96,9 +115,14 @@ var esDecoded: Language
 esDecoded.decode("es.fbe")
 
 # Verify translations from the decoded Spanish language
-echo esDecoded.translate("welcome")  # Output: "¡Bienvenido a Oris!"
-echo esDecoded.translate("welcome_message", ["4"])  # Output: "Tu instancia de Oris ya está en vivo. Tienes 4 nuevos mensajes."
-echo esDecoded.translate("animals", [("dogs", 3), ("cats", 1)])  # Output: "3 perros y un gato"
+echo esDecoded.translate("welcome")
+  # "¡Bienvenido a Oris!"
+
+echo esDecoded.translate("welcome_message", ["4"])
+  # "Tu instancia de Oris ya está en vivo. Tienes 4 nuevos mensajes."
+
+echo esDecoded.translate("animals", [("dogs", 3), ("cats", 1)])
+  # "3 perros y un gato"
 ```
 
 ### Other serialization formats
