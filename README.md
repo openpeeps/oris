@@ -1,4 +1,5 @@
 <p align="center">
+  <img src="https://github.com/openpeeps/oris/blob/main/.github/oris.png" width="120px"><br>
   A simple i18n library for Nim
 </p>
 
