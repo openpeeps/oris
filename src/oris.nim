@@ -42,8 +42,8 @@ type
       # A sequence of plural rules for handling different plural forms based on a count
 
   Language* = ref object
-    code: string
-    translations: TableRef[string, TranslatableSring]
+    code*: string
+    translations*: TableRef[string, TranslatableSring]
       # A table that maps translation keys to their corresponding `TranslatableString`
       # objects, which contain the translation text and any arguments for interpolation
 
@@ -52,7 +52,7 @@ type
     default*: string
       ## The default language code to use for translations when no
       ## specific language is provided
-    languages: TableRef[string, Language]
+    languages*: TableRef[string, Language]
       # A table that maps language codes to their corresponding
       # Language objects, which contain translations
 
@@ -118,9 +118,9 @@ proc translatePlural*(lang: Language; key: string;
     if countMap.hasKey(ctx):
       let n = countMap[ctx]
       if rule.match == n:
-        resolved[ctx] = rule.text % [ctx, $n]   # use ctx, not "count"
+        resolved[ctx] = rule.text % [ctx, $n]
       elif rule.match == -1:
-        fallbacks[ctx] = rule.text % [ctx, $n]  # same here
+        fallbacks[ctx] = rule.text % [ctx, $n]
 
   for ctx, fb in fallbacks:
     if not resolved.hasKey(ctx):
@@ -132,7 +132,12 @@ proc translatePlural*(lang: Language; key: string;
     substitutions.add(ctx)
     substitutions.add(text)
 
-  # Substitute into outer template: $dogs, $cats, etc.
+  # Add fallback for unresolved placeholders
+  for ctx in countMap.keys:
+    if not resolved.hasKey(ctx):
+      substitutions.add(ctx)
+      substitutions.add("$" & ctx) # mark as unresolved placeholder
+
   result = t.text % substitutions
 
 proc translatePlural*(i18n: Oris; key: string; counts: openArray[(string, int)]): string =
@@ -397,86 +402,3 @@ proc decode*(lang: var Language, path: string) =
     else:
       discard
   endReadRootStruct(b)
-
-when isMainModule:
-  # Initialize Oris instance with default language "en"
-  var i18n = newOris(default = "en")
-
-  # Define English language
-  newLanguage i18n, "en":
-    welcome: "Welcome to Oris!"
-    welcome_message: "Your Oris instance is now live. You have $count new messages."
-    dashboard_title: "Dashboard"
-    dashboard_description: "This is your Oris dashboard where you can manage your projects, settings, and more."
-    greeting_user: "Hello, $name! Welcome back."
-    animals do(dogs: int, cats: int):
-      result = "$dogs and $cats"
-      case dogs:
-        of 1: "one dog"
-        else: "$dogs dogs"
-      case cats:
-        of 1: "one cat"
-        else: "$cats cats"
-
-  # Define Spanish language
-  newLanguage i18n, "es":
-    welcome: "¡Bienvenido a Oris!"
-    welcome_message: "Tu instancia de Oris ya está en vivo. Tienes $count nuevos mensajes."
-    dashboard_title: "Panel de Control"
-    dashboard_description: "Este es tu panel de control de Oris donde puedes administrar tus proyectos, configuraciones y más."
-    greeting_user: "¡Hola, $name! Bienvenido de nuevo."
-    animals do(dogs: int, cats: int):
-      result = "$dogs y $cats"
-      case dogs:
-        of 1: "un perro"
-        else: "$dogs perros"
-      case cats:
-        of 1: "un gato"
-        else: "$cats gatos"
-
-  # Showcase translations in the default language ("en")
-  echo "Default Language (English):"
-  echo i18n.translate("welcome")  # Output: "Welcome to Oris!"
-  echo i18n.translate("welcome_message", ["3"])  # Output: "Your Oris instance is now live. You have 3 new messages."
-  echo i18n.translate("greeting_user", @["Alice"])  # Output: "Hello, Alice! Welcome back."
-  echo i18n.translatePlural("animals", [("dogs", 2), ("cats", 1)])  # Output: "2 dogs and one cat"
-
-  # Showcase translations in Spanish ("es")
-  echo "-------------------------------"
-  echo "\nSpanish Language:"
-  echo i18n.translate("es", "welcome")  # Output: "¡Bienvenido a Oris!"
-  echo i18n.translate("es", "welcome_message", ["5"])  # Output: "Tu instancia de Oris ya está en vivo. Tienes 5 nuevos mensajes."
-  echo i18n.translate("es", "greeting_user", @["Carlos"])  # Output: "¡Hola, Carlos! Bienvenido de nuevo."
-  echo i18n.translatePlural("es", "animals", [("dogs", 1), ("cats", 3)])  # Output: "un perro y 3 gatos"
-
-  echo "-------------------------------"
-  # Encode the English language to disk using FastBinaryEncoding (FBE) format
-  echo "\nEncoding English language to disk..."
-  i18n.languages["en"].encode("en.fbe")
-
-  # Decode the language from disk and verify translations
-  echo "Decoding English language from disk..."
-  var enDecoded: Language
-  enDecoded.decode("en.fbe")
-
-  # Verify translations from the decoded language
-  echo "\nDecoded Language (English):"
-  echo enDecoded.translate("welcome")  # Output: "Welcome to Oris!"
-  echo enDecoded.translate("welcome_message", ["2"])  # Output: "Your Oris instance is now live. You have 2 new messages."
-  echo enDecoded.translatePlural("animals", [("dogs", 1), ("cats", 2)])  # Output: "one dog and 2 cats"
-
-  echo "-------------------------------"
-  # Encode the Spanish language to disk
-  echo "\nEncoding Spanish language to disk..."
-  i18n.languages["es"].encode("es.fbe")
-
-  # Decode the Spanish language from disk and verify translations
-  echo "Decoding Spanish language from disk..."
-  var esDecoded: Language
-  esDecoded.decode("es.fbe")
-
-  # Verify translations from the decoded Spanish language
-  echo "\nDecoded Language (Spanish):"
-  echo esDecoded.translate("welcome")  # Output: "¡Bienvenido a Oris!"
-  echo esDecoded.translate("welcome_message", ["4"])  # Output: "Tu instancia de Oris ya está en vivo. Tienes 4 nuevos mensajes."
-  echo esDecoded.translatePlural("animals", [("dogs", 3), ("cats", 1)])  # Output: "3 perros y un gato"
