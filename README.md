@@ -128,6 +128,8 @@ echo esDecoded.translate("animals", [("dogs", 3), ("cats", 1)])
 ### Other serialization formats
 You can use `pkg/openparser/json`(with/without `pkg/openparser/bson`), `pkg/jsony`, `pkg/flatty` to encode/decode `Language` data to/from JSON, JSONY, or binary formats as well.
 
+
+### Inspiration
 Inspired by other i18n libraries from Nim community:
 - https://github.com/moigagoo/loco
 - https://github.com/heinthanth/ni18n
