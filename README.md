@@ -101,6 +101,10 @@ echo esDecoded.translate("welcome_message", ["4"])  # Output: "Tu instancia de O
 echo esDecoded.translate("animals", [("dogs", 3), ("cats", 1)])  # Output: "3 perros y un gato"
 ```
 
+Inspired by other i18n libraries from Nim community:
+- https://github.com/moigagoo/loco
+- https://github.com/heinthanth/ni18n
+
 ### ❤ Contributions & Support
 - 🐛 Found a bug? [Create a new Issue](https://github.com/openpeeps/oris/issues)
 - 👋 Wanna help? [Fork it!](https://github.com/openpeeps/oris/fork)
