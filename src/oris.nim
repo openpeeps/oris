@@ -7,11 +7,29 @@
 ## Oris is a simple internationalization (i18n) library for Nim. This module implements 
 ## language management, translation retrieval, and serialization/deserialization of language data
 ## using [FastBinaryEncoding](https://chronoxor.github.io/FastBinaryEncoding/documents/FBE.html) (FBE) format
+## 
+## Features:
+## - Define multiple languages with translation keys and values
+## - Support for pluralization with context-aware rules
+## - Serialize and deserialize language data to/from disk using FBE for efficient storage and sharing
+## - Runtime switching between languages and retrieval of translations with optional interpolation
 
 import std/[macros, tables, strutils, os]
 import pkg/openparser/fbe
 
 type
+  PluralRule* = object
+    ## A single plural branch: `match = -1` means the `else` branch
+    context: string
+      # an optional context string to distinguish
+      # different plural forms
+    match: int
+      # the count value to match for this plural form,
+      # or -1 for the "else" branch
+    text: string
+      # the translation text for this plural form
+    args: seq[string]
+
   TranslatableSring* = ref object
     ## Represents a translatable string that can be used in the Oris internationalization library.
     ## It contains the translation text and any arguments that may be needed for interpolation
@@ -20,6 +38,8 @@ type
     args: seq[string]
       # A translatable string that contains the translation
       # text and any arguments for interpolation
+    plurals: seq[PluralRule]
+      # A sequence of plural rules for handling different plural forms based on a count
 
   Language* = ref object
     code: string
@@ -35,7 +55,6 @@ type
     languages: TableRef[string, Language]
       # A table that maps language codes to their corresponding
       # Language objects, which contain translations
-      
 
 proc newOris*(default: string): Oris =
   ## Initializes the Oris internationalization library
@@ -44,6 +63,10 @@ proc newOris*(default: string): Oris =
 proc newTranslatableString*(text: string, args: seq[string] = @[]): TranslatableSring =
   ## Creates a new translatable string with the given text, arguments, and complexity flag
   TranslatableSring(text: text, args: args)
+
+proc newPluralRule*(ctx: string, match: int, text: string, args: seq[string] = @[]): PluralRule =
+  ## Creates a new plural rule with the given match value, text, and arguments
+  PluralRule(context: ctx, match: match, text: text, args: args)
 
 proc getLanguage*(i18n: Oris, code: string): Language =
   ## Retrieves a language from the Oris instance by its code
@@ -74,6 +97,52 @@ proc translateImpl(translations: TableRef[string, TranslatableSring];
         add values, vargs[i]
       return translation.text % values
     return translation.text
+  return key
+
+proc translatePlural*(lang: Language; key: string;
+                      counts: openArray[(string, int)]): string =
+  ## Handles single or multi-context pluralization.
+  ## `counts` is e.g. `[("dogs", 2), ("cats", 1)]`
+  if unlikely(not lang.translations.hasKey(key)): return key
+  let t = lang.translations[key]
+  if t.plurals.len == 0: return t.text
+
+  var countMap = initTable[string, int](counts.len)
+  for (ctx, n) in counts: countMap[ctx] = n
+
+  var resolved  = initTable[string, string](counts.len)
+  var fallbacks = initTable[string, string](counts.len)
+
+  for rule in t.plurals:
+    let ctx = rule.context
+    if countMap.hasKey(ctx):
+      let n = countMap[ctx]
+      if rule.match == n:
+        resolved[ctx] = rule.text % [ctx, $n]   # use ctx, not "count"
+      elif rule.match == -1:
+        fallbacks[ctx] = rule.text % [ctx, $n]  # same here
+
+  for ctx, fb in fallbacks:
+    if not resolved.hasKey(ctx):
+      resolved[ctx] = fb
+
+  # build key-value pairs for the outer template substitution
+  var substitutions: seq[string]
+  for ctx, text in resolved:
+    substitutions.add(ctx)
+    substitutions.add(text)
+
+  # Substitute into outer template: $dogs, $cats, etc.
+  result = t.text % substitutions
+
+proc translatePlural*(i18n: Oris; key: string; counts: openArray[(string, int)]): string =
+  ## Translates a pluralizable key using the default language in the Oris instance.
+  translatePlural(i18n.languages[i18n.default], key, counts)
+
+proc translatePlural*(i18n: Oris; langCode: string; key: string; counts: openArray[(string, int)]): string =
+  ## Translates a pluralizable key using the specified language code in the Oris instance.
+  if i18n.languages.hasKey(langCode):
+    return translatePlural(i18n.languages[langCode], key, counts)
   return key
 
 proc translate*(lang: Language; key: string): string =
@@ -117,8 +186,59 @@ macro newLanguage*(lang: untyped, code: static string, translations: untyped) =
   for row in translations:
     expectKind(row, nnkCall)
     expectKind(row[0], nnkIdent)
-    expectKind(row[1], nnkStmtList)
-    expectKind(row[1][0], nnkStrLit)
+
+    if row[1].kind == nnkDo:
+      let body = row[1].last   # the case stmt
+      expectKind(body, nnkStmtList)
+      var outerTemplate = ""
+      var rulesNode = newNimNode(nnkBracket)
+      for stmtNode in body:
+        case stmtNode.kind
+        of nnkAsgn:
+          # result = "$dogs and $cats"
+          if stmtNode[0].kind == nnkIdent and stmtNode[0].strVal == "result":
+            outerTemplate = stmtNode[1].strVal
+          else:
+            error("Expected `result = \"...\"` as outer template, got: " & repr(stmtNode), stmtNode)
+        of nnkCaseStmt:
+          let ctx = stmtNode[0].strVal
+          for branch in stmtNode:
+            case branch.kind
+            of nnkOfBranch:
+              let matchVal = branch[0].intVal.int
+              let text = branch[1][0].strVal
+              rulesNode.add(
+                newCall(
+                  ident"newPluralRule",
+                  newLit(ctx),
+                  newLit(matchVal),
+                  newLit(text),
+                  nnkPrefix.newTree(ident"@", newNimNode(nnkBracket))
+                )
+              )
+            of nnkElse:
+              let text = branch[0][0].strVal
+              rulesNode.add(
+                newCall(
+                  ident"newPluralRule",
+                  newLit(ctx),
+                  newLit(-1),
+                  newLit(text),
+                  nnkPrefix.newTree(ident"@", newNimNode(nnkBracket))
+                )
+              )
+            else: discard
+        else: discard
+      
+      if outerTemplate.len == 0:
+        error("Missing `result = \"...\"` outer template in plural block for key: " & row[0].strVal, row)
+
+      let key = newLit(row[0].strVal)
+      let tmpl = newLit(outerTemplate)
+      translationRows.add quote do:
+        `langIdent`.translations[`key`] =
+          TranslatableSring(text: `tmpl`, plurals: @`rulesNode`)
+      continue
     
     var i = 0
     let input = row[1][0].strVal
@@ -159,25 +279,18 @@ macro newLanguage*(lang: untyped, code: static string, translations: untyped) =
     if someArg.len > 0:
       args.add(newLit(someArg))
 
+    let key = newLit(row[0].strVal)
     translationRows.add(
-      nnkStmtList.newTree(
-        nnkAsgn.newTree(
-          nnkBracketExpr.newTree(
-            nnkDotExpr.newTree(
-              langIdent,
-              ident"translations"
-            ),
-            newLit(row[0].strVal)
-          ),
-          if args.len > 0:
-            newCall(
-              ident("newTranslatableString"),
-              newLit(input),
-              nnkPrefix.newTree(ident"@", args)
-            )
-          else:
-            newCall(ident("newTranslatableString"), newLit(input))
-        )
+      nnkAsgn.newTree(
+        nnkBracketExpr.newTree(
+          nnkDotExpr.newTree(langIdent, ident"translations"),
+          key
+        ),
+        if args.len > 0:
+          newCall(ident"newTranslatableString", newLit(input),
+                  nnkPrefix.newTree(ident"@", args))
+        else:
+          newCall(ident"newTranslatableString", newLit(input))
       )
     )
   result = newStmtList()
@@ -187,8 +300,14 @@ macro newLanguage*(lang: untyped, code: static string, translations: untyped) =
     `lang`.languages[`code`] = `langIdent`
     `translationRows`
 
+  when defined(orisDebug):
+    echo result.repr
+
 proc encode*(lang: Language; path: string) =
-  ## Serialize a Language instance to disk using openparser.fbe buffer layout.
+  ## Serialize a Language instance to disk using openparser/fbe format.
+  ## 
+  ## This can be used to save language data in a compact binary format for sharing
+  ## between applications or for efficient storage.
   var b = initBuffer()
   b.reset()
   # root header version 1
@@ -203,13 +322,23 @@ proc encode*(lang: Language; path: string) =
     var entries = newSeq[tuple[key: string, val: TranslatableSring]](0)
     for k, v in lang.translations:
       entries.add((key: k, val: v))
+    
     # write vector of entries
     writeVector[tuple[key: string, val: TranslatableSring]](bb, entries,
       proc (bbb: var Buffer; it: tuple[key: string, val: TranslatableSring]) =
         bbb.writeString(it.key)
         bbb.writeString(it.val.text)
-        # args as vector<string>
-        writeVector[string](bbb, it.val.args, proc (bbbb: var Buffer; s: string) = bbbb.writeString(s))
+        writeVector[string](bbb, it.val.args,
+          proc (b4: var Buffer; s: string) = b4.writeString(s))
+        # plurals
+        writeVector[PluralRule](bbb, it.val.plurals,
+          proc (b4: var Buffer; r: PluralRule) =
+            b4.writeString(r.context)
+            b4.writeInt32LE(r.match.int32)
+            b4.writeString(r.text)
+            writeVector[string](b4, r.args,
+              proc (b5: var Buffer; s: string) = b5.writeString(s))
+        )
     )
   )
 
@@ -247,10 +376,20 @@ proc decode*(lang: var Language, path: string) =
         proc (bb: var Buffer): seq[tuple[key: string, val: TranslatableSring]] =
           readVector[tuple[key: string, val: TranslatableSring]](bb,
             proc (bbb: var Buffer): tuple[key: string, val: TranslatableSring] =
-              let k = bbb.readString()
+              let k    = bbb.readString()
               let text = bbb.readString()
-              let args = readVector[string](bbb, proc (bbbb: var Buffer): string = bbbb.readString())
-              (key: k, val: newTranslatableString(text, args))
+              let args = readVector[string](bbb,
+                proc (b4: var Buffer): string = b4.readString())
+              let plurals = readVector[PluralRule](bbb,
+                proc (b4: var Buffer): PluralRule =
+                  let ctx   = b4.readString()
+                  let m     = b4.readInt32LE().int
+                  let pt    = b4.readString()
+                  let pargs = readVector[string](b4,
+                    proc (b5: var Buffer): string = b5.readString())
+                  PluralRule(context: ctx, match: m, text: pt, args: pargs)  # was missing context: ctx
+              )
+              (key: k, val: TranslatableSring(text: text, args: args, plurals: plurals))
           )
       )
       for it in entries:
@@ -260,44 +399,84 @@ proc decode*(lang: var Language, path: string) =
   endReadRootStruct(b)
 
 when isMainModule:
-  # init Oris instance with default language "en"
+  # Initialize Oris instance with default language "en"
   var i18n = newOris(default = "en")
 
-  # define a language
+  # Define English language
   newLanguage i18n, "en":
-    welcome: "Welcome to Sunday!"
-    welcome_message: "Your Sunday instance is now live. You have $count new messages."
-    overview_title: "Overview"
-    overview_description: "This is your Sunday dashboard where you can manage your website, plugins, themes, and more."
-    hello_user: "Hello, $name! Welcome back to your dashboard."
-    new_messages: "You have $count new messages."
+    welcome: "Welcome to Oris!"
+    welcome_message: "Your Oris instance is now live. You have $count new messages."
+    dashboard_title: "Dashboard"
+    dashboard_description: "This is your Oris dashboard where you can manage your projects, settings, and more."
+    greeting_user: "Hello, $name! Welcome back."
+    animals do(dogs: int, cats: int):
+      result = "$dogs and $cats"
+      case dogs:
+        of 1: "one dog"
+        else: "$dogs dogs"
+      case cats:
+        of 1: "one cat"
+        else: "$cats cats"
 
-  # defune a new language
+  # Define Spanish language
   newLanguage i18n, "es":
-    welcome: "¡Bienvenido a Sunday!"
-    welcome_message: "Tu instancia de Sunday ya está en vivo. Tienes $count nuevos mensajes."
-    overview_title: "Visión general"
-    overview_description: "Este es tu panel de control de Sunday donde puedes administrar tu sitio web, plugins, temas y más."
-    hello_user: "¡Hola, $name! Bienvenido de nuevo a tu panel de control."
-    new_messages: "Tienes $count nuevos mensajes."
+    welcome: "¡Bienvenido a Oris!"
+    welcome_message: "Tu instancia de Oris ya está en vivo. Tienes $count nuevos mensajes."
+    dashboard_title: "Panel de Control"
+    dashboard_description: "Este es tu panel de control de Oris donde puedes administrar tus proyectos, configuraciones y más."
+    greeting_user: "¡Hola, $name! Bienvenido de nuevo."
+    animals do(dogs: int, cats: int):
+      result = "$dogs y $cats"
+      case dogs:
+        of 1: "un perro"
+        else: "$dogs perros"
+      case cats:
+        of 1: "un gato"
+        else: "$cats gatos"
 
+  # Showcase translations in the default language ("en")
+  echo "Default Language (English):"
+  echo i18n.translate("welcome")  # Output: "Welcome to Oris!"
+  echo i18n.translate("welcome_message", ["3"])  # Output: "Your Oris instance is now live. You have 3 new messages."
+  echo i18n.translate("greeting_user", @["Alice"])  # Output: "Hello, Alice! Welcome back."
+  echo i18n.translatePlural("animals", [("dogs", 2), ("cats", 1)])  # Output: "2 dogs and one cat"
 
-  # verify translation from Oris instance using default language
-  echo i18n.translate("welcome_message", ["3"])   # Output: "Welcome to Sunday!"
-  echo i18n.translate("hello_user", @["George"])  # Output: "Hello, George! Welcome back to your dashboard."
+  # Showcase translations in Spanish ("es")
+  echo "-------------------------------"
+  echo "\nSpanish Language:"
+  echo i18n.translate("es", "welcome")  # Output: "¡Bienvenido a Oris!"
+  echo i18n.translate("es", "welcome_message", ["5"])  # Output: "Tu instancia de Oris ya está en vivo. Tienes 5 nuevos mensajes."
+  echo i18n.translate("es", "greeting_user", @["Carlos"])  # Output: "¡Hola, Carlos! Bienvenido de nuevo."
+  echo i18n.translatePlural("es", "animals", [("dogs", 1), ("cats", 3)])  # Output: "un perro y 3 gatos"
 
-  # verify translation from specific language
-  echo ""
-  echo i18n.translate("es", "welcome_message", ["5"])   # Output: "¡Bienvenido a Sunday!"
-  echo i18n.translate("es", "hello_user", @["George"])  # Output: "¡Hola, George! Bienvenido de nuevo a tu panel de control."
-
-  # encode specific language to disk using FastBinaryEncoding (FBE) format
-  echo ""
+  echo "-------------------------------"
+  # Encode the English language to disk using FastBinaryEncoding (FBE) format
+  echo "\nEncoding English language to disk..."
   i18n.languages["en"].encode("en.fbe")
 
-  # decode language from disk and verify translation works
-  var en2: Language
-  en2.decode("en.fbe")
+  # Decode the language from disk and verify translations
+  echo "Decoding English language from disk..."
+  var enDecoded: Language
+  enDecoded.decode("en.fbe")
 
-  # verify translation from decoded language
-  echo en2.translate("welcome")    # Output: "Welcome to Sunday!"
+  # Verify translations from the decoded language
+  echo "\nDecoded Language (English):"
+  echo enDecoded.translate("welcome")  # Output: "Welcome to Oris!"
+  echo enDecoded.translate("welcome_message", ["2"])  # Output: "Your Oris instance is now live. You have 2 new messages."
+  echo enDecoded.translatePlural("animals", [("dogs", 1), ("cats", 2)])  # Output: "one dog and 2 cats"
+
+  echo "-------------------------------"
+  # Encode the Spanish language to disk
+  echo "\nEncoding Spanish language to disk..."
+  i18n.languages["es"].encode("es.fbe")
+
+  # Decode the Spanish language from disk and verify translations
+  echo "Decoding Spanish language from disk..."
+  var esDecoded: Language
+  esDecoded.decode("es.fbe")
+
+  # Verify translations from the decoded Spanish language
+  echo "\nDecoded Language (Spanish):"
+  echo esDecoded.translate("welcome")  # Output: "¡Bienvenido a Oris!"
+  echo esDecoded.translate("welcome_message", ["4"])  # Output: "Tu instancia de Oris ya está en vivo. Tienes 4 nuevos mensajes."
+  echo esDecoded.translatePlural("animals", [("dogs", 3), ("cats", 1)])  # Output: "3 perros y un gato"
