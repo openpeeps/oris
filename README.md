@@ -101,6 +101,9 @@ echo esDecoded.translate("welcome_message", ["4"])  # Output: "Tu instancia de O
 echo esDecoded.translate("animals", [("dogs", 3), ("cats", 1)])  # Output: "3 perros y un gato"
 ```
 
+### Other serialization formats
+You can use `pkg/openparser/json`(with/without `pkg/openparser/bson`), `pkg/jsony`, `pkg/flatty` to encode/decode `Language` data to/from JSON, JSONY, or binary formats as well.
+
 Inspired by other i18n libraries from Nim community:
 - https://github.com/moigagoo/loco
 - https://github.com/heinthanth/ni18n
