@@ -137,7 +137,6 @@ Inspired by other i18n libraries from Nim community:
 ### ❤ Contributions & Support
 - 🐛 Found a bug? [Create a new Issue](https://github.com/openpeeps/oris/issues)
 - 👋 Wanna help? [Fork it!](https://github.com/openpeeps/oris/fork)
-- 😎 [Get €20 in cloud credits from Hetzner](https://hetzner.cloud/?ref=Hm0mYGM9NxZ4)
 
 ### 🎩 License
 MIT license. [Made by Humans from OpenPeeps](https://github.com/openpeeps).<br>
