@@ -1,0 +1,23 @@
+nimTitle	oris	oris.html	module oris		0
+nim	PluralRule	oris.html#PluralRule	object PluralRule		21
+nim	TranslatableSring	oris.html#TranslatableSring	type TranslatableSring		33
+nim	Language	oris.html#Language	type Language		44
+nim	Oris	oris.html#Oris	type Oris		50
+nim	newOris	oris.html#newOris,string	proc newOris(default: string): Oris		59
+nim	newTranslatableString	oris.html#newTranslatableString,string,seq[string]	proc newTranslatableString(text: string; args: seq[string] = @[]): TranslatableSring		63
+nim	newPluralRule	oris.html#newPluralRule,string,int,string,seq[string]	proc newPluralRule(ctx: string; match: int; text: string; args: seq[string] = @[]): PluralRule		67
+nim	getLanguage	oris.html#getLanguage,Oris,string	proc getLanguage(i18n: Oris; code: string): Language		71
+nim	addLanguage	oris.html#addLanguage,Oris,string,TableRef[string,TranslatableSring]	proc addLanguage(i18n: Oris; code: string;\n            translations: TableRef[string, TranslatableSring])		79
+nim	translate	oris.html#translate,Language,string,openArray[]	proc translate(lang: Language; key: string; counts: openArray[(string, int)]): string		102
+nim	translate	oris.html#translate,Oris,string,openArray[]	proc translate(i18n: Oris; key: string; counts: openArray[(string, int)]): string		142
+nim	translate	oris.html#translate,Oris,string,string,openArray[]	proc translate(i18n: Oris; langCode: string; key: string;\n          counts: openArray[(string, int)]): string		146
+nim	translate	oris.html#translate,Language,string	proc translate(lang: Language; key: string): string		152
+nim	translate	oris.html#translate,Language,string,openArray[string]	proc translate(lang: Language; key: string; vargs: openArray[string]): string		159
+nim	translate	oris.html#translate,Oris,string	proc translate(i18n: Oris; key: string): string		163
+nim	translate	oris.html#translate,Oris,string,openArray[string]	proc translate(i18n: Oris; key: string; vargs: openArray[string]): string		167
+nim	translate	oris.html#translate,Oris,string,string	proc translate(i18n: Oris; langCode: string; key: string): string		171
+nim	translate	oris.html#translate,Oris,string,string,openArray[string]	proc translate(i18n: Oris; langCode: string; key: string; vargs: openArray[string]): string		177
+nim	newLanguage	oris.html#newLanguage.m,untyped,staticstring,untyped	macro newLanguage(lang: untyped; code: static string; translations: untyped)		183
+nim	encode	oris.html#encode,Language,string	proc encode(lang: Language; path: string)		310
+nim	decode	oris.html#decode,Language,string	proc decode(lang: var Language; path: string)		359
+nimgrp	translate	oris.html#translate-procs-all	proc		102
